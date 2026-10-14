@@ -169,8 +169,29 @@ const Api = {
   },
 
   async shorts(channels = [], queries = []) {
-    if (!STATIC) return fetch('/api/shorts' + (channels.length ? '?channels=' + channels.join(',') : '')).then(r => r.json());
-    const qs = [...queries.slice(0, 3), 'komik shorts', 'shorts videoları', 'ilginç kısa videolar'].slice(0, 5);
-    return { source: 'piped-direct shorts', results: await pdShorts(qs) };
+    if (!STATIC) {
+      const j = await fetch('/api/shorts' + (channels.length ? '?channels=' + channels.join(',') : '')).then(r => r.json());
+      return { personal: [], pool: j.results || [], qres: [] };
+    }
+    // Statik: 1) izlenen kanalların son videolarından kısa olanlar (gerçek kişiselleştirme)
+    const chBatches = await Promise.all(channels.slice(0, 5).map(async id => {
+      try {
+        const c = await Api.channel(id);
+        return (c.videos || []).filter(v => {
+          const d = Number(v.duration);
+          return d >= 4 && d <= 70 && !v.live;
+        }).map(v => ({ ...v, short: true }));
+      } catch { return []; }
+    }));
+    // 2) shorts.json havuzu (uygulama tarafı izlenen kanala göre sıralar)
+    let pool = [];
+    try {
+      const r = await fetch('./shorts.json');
+      if (r.ok) { const j = await r.json(); pool = (j.results || []).map(v => ({ ...v, short: true })); }
+    } catch {}
+    // 3) arama bazlı kısa videolar
+    const qs = [...queries.slice(0, 3), 'komik shorts', 'shorts videoları'].slice(0, 5);
+    const qres = await pdShorts(qs).catch(() => []);
+    return { personal: chBatches.flat(), pool, qres };
   }
 };

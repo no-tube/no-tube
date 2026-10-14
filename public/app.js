@@ -314,7 +314,16 @@ async function openShorts() {
   const sq = [...new Set(getSearches().slice(0, 3).map(s => s.q + ' shorts'))];
   try {
     const r = await Api.shorts(chs, sq);
-    const list = r.results || [];
+    // Birleştir: önce SENİN kanallarından kısa videolar, sonra havuz (izlediklerin üstte), sonra aramalar
+    const seen = new Set();
+    const final = [];
+    const pushAll = arr => (arr || []).forEach(v => {
+      if (v?.id && v.id.length === 11 && !seen.has(v.id)) { seen.add(v.id); final.push(v); }
+    });
+    pushAll(rankVideos(r.personal || []));
+    pushAll(rankVideos(r.pool || []));
+    pushAll(r.qres || []);
+    const list = final.slice(0, 30);
     if (!list.length) { $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">Shorts bulunamadı.</p>'; return; }
     $('shortsFeed').innerHTML = list.map((v, i) => `
       <div class="slide" data-i="${i}">
