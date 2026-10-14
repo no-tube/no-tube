@@ -311,14 +311,15 @@ async function openShorts() {
   $('shortsView').classList.remove('hidden');
   $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">⚡ Shorts yükleniyor...</p>';
   const chs = [...new Set(getHist().filter(h => h.authorId).slice(0, 5).map(h => h.authorId))];
+  const sq = [...new Set(getSearches().slice(0, 3).map(s => s.q + ' shorts'))];
   try {
-    const r = await fetch('/api/shorts' + (chs.length ? '?channels=' + chs.join(',') : '')).then(r => r.json());
+    const r = await Api.shorts(chs, sq);
     const list = r.results || [];
     if (!list.length) { $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">Shorts bulunamadı.</p>'; return; }
     $('shortsFeed').innerHTML = list.map((v, i) => `
       <div class="slide" data-i="${i}">
         <div class="relative h-full aspect-[9/16] max-w-full bg-black rounded-xl overflow-hidden">
-          <video data-id="${v.id}" class="w-full h-full object-cover" loop playsinline muted preload="none" poster="${v.thumbnail}" onclick="this.paused?this.play().catch(()=>{}):this.pause()"></video>
+          <video data-id="${v.id}" class="w-full h-full object-contain bg-black" loop playsinline muted preload="none" poster="${v.thumbnail}" onclick="this.paused?this.play().catch(()=>{}):this.pause()"></video>
           <button onclick="event.stopPropagation();toggleShortMute(this)" class="absolute top-2 right-2 z-10 chip rounded-full px-3 py-1.5 text-sm">🔇</button>
           <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
             <p class="font-semibold text-sm line2">${esc(v.title)}</p>
@@ -454,9 +455,8 @@ function toggleHistory() {
 }
 function clearHistory() { localStorage.removeItem('yt_hist'); toggleHistory(); toggleHistory(); loadTrending(); }
 
-// Statik modda (GitHub Pages) backend yok: Shorts + indirme gizlenir
+// Statik modda (GitHub Pages) backend yok: indirme gizlenir (Shorts statikte de var)
 if (typeof STATIC !== 'undefined' && STATIC) {
-  const sb = $('shortsBtn'); if (sb) sb.style.display = 'none';
   for (const b of ['dlMp4', 'dlMp3']) { const el = $(b); if (el) el.style.display = 'none'; }
 }
 

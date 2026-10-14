@@ -59,6 +59,26 @@ function pdSplit(data) {
   return { vo: vo?.url || null, ao: ao?.url || null, aoType: (ao?.mimeType || '').includes('webm') ? 'audio/webm' : 'audio/mp4' };
 }
 
+async function pdShorts(queries) {
+  const seen = new Set();
+  const scored = [];
+  const batches = await Promise.all(queries.map(q =>
+    pp(`/search?q=${encodeURIComponent(q)}&filter=videos`).then(({ json }) =>
+      (json.items || []).filter(i => i.type === 'stream').map(pdNorm).filter(v => v)
+    ).catch(() => [])
+  ));
+  for (const v of batches.flat()) {
+    if (!v || seen.has(v.id) || v.live) continue;
+    seen.add(v.id);
+    const d = Number(v.duration);
+    if (!(d >= 4 && d <= 70)) continue; // sadece kısa videolar
+    const t = (v.title || '').toLowerCase();
+    const isS = t.includes('shorts') || t.includes('#short') || v.short;
+    scored.push({ v: { ...v, short: true }, s: (isS ? 100 : 0) + Math.log10(Math.max(10, Number(v.views) || 100)) });
+  }
+  return scored.sort((a, b) => b.s - a.s).slice(0, 24).map(x => x.v);
+}
+
 async function pdSearchItems(q, n = 5) {
   const { json } = await pp(`/search?q=${encodeURIComponent(q)}&filter=videos`);
   return (json.items || []).filter(i => i.type === 'stream').map(pdNorm).filter(v => v && !v.live).slice(0, n);
@@ -146,5 +166,11 @@ const Api = {
         return { id: vid, title: i.title, author: d.name, views: i.views, thumbnail: pdThumb(vid), duration: i.duration, live: i.duration === -1, short: !!i.isShort };
       }).filter(v => v.id)
     };
+  },
+
+  async shorts(channels = [], queries = []) {
+    if (!STATIC) return fetch('/api/shorts' + (channels.length ? '?channels=' + channels.join(',') : '')).then(r => r.json());
+    const qs = [...queries.slice(0, 3), 'komik shorts', 'shorts videoları', 'ilginç kısa videolar'].slice(0, 5);
+    return { source: 'piped-direct shorts', results: await pdShorts(qs) };
   }
 };
