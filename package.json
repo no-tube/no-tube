@@ -1,0 +1,14 @@
+{
+  "name": "yt-alternatif",
+  "version": "1.0.0",
+  "description": "YouTube Data API gerektirmeyen alternatif YouTube - Invidious/Piped + yt-dlp hibrit",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
