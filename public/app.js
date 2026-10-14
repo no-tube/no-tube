@@ -73,7 +73,7 @@ async function goHome() {
 }
 async function loadTrending() {
   try {
-    const r = await fetch('/api/trending').then(r => r.json());
+    const r = await Api.trending();
     const list = r.results || [];
     lastRelated = list;
     // Geçmiş (izleme veya arama) varsa ana sayfa = sadece öneriler. Yoksa Keşfet göster.
@@ -85,12 +85,6 @@ async function loadTrending() {
     }
     renderReco(list);
   } catch { $('grid').innerHTML = '<p class="text-gray-400">Yüklenemedi, sayfayı yenile.</p>'; }
-}
-async function fetchTimeout(url, ms = 25000) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { signal: c.signal }); return await r.json(); }
-  finally { clearTimeout(t); }
 }
 
 // Gerçek öneri motoru: geçmişten yeni adaylar bulur (sadece sıralamaz, keşfeder)
@@ -132,14 +126,14 @@ async function renderReco(pool) {
     const batches = await Promise.all(queries.map(async qq => {
       try {
         if (qq.type === 'related') {
-          const v = await fetchTimeout('/api/video/' + qq.q);
+          const v = await Api.video(qq.q);
           return (v.related || []).map(x => ({ ...x, _via: qq.via, _src: 'related' }));
         }
         if (qq.type === 'search') {
-          const s = await fetchTimeout('/api/search?q=' + encodeURIComponent(qq.q) + '&limit=8');
+          const s = await Api.search(qq.q, 8);
           return (s.results || []).map(x => ({ ...x, _src: 'search:' + qq.q.toLowerCase() }));
         }
-        const c = await fetchTimeout('/api/channel/' + qq.q);
+        const c = await Api.channel(qq.q);
         return (c.videos || []).map(x => ({ ...x, _src: 'channel' }));
       } catch { return []; }
     }));
@@ -194,7 +188,7 @@ async function doSearch() {
   hideShorts();
   $('recoBar').classList.add('hidden');
   $('homeView').classList.remove('hidden'); $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden');
-  const r = await fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json());
+  const r = await Api.search(q);
   const list = rankVideos(r.results || []);
   lastRelated = list;
   $('exploreWrap').classList.remove('hidden');
@@ -210,8 +204,8 @@ async function watch(id) {
   $('vTitle').textContent = 'Yükleniyor...'; $('related').innerHTML = ''; $('comments').innerHTML = 'Yorumlar yükleniyor...';
   $('player').classList.add('hidden'); $('embed').classList.add('hidden');
   try {
-    const metaP = fetch('/api/video/' + id).then(r => r.json());
-    const streamP = fetch('/api/stream/' + id).then(r => r.json()).catch(() => null);
+    const metaP = Api.video(id);
+    const streamP = Api.stream(id).catch(() => null);
     const meta = await metaP; // bilgi hemen gelsin, stream beklenmesin
     if (meta.error) throw new Error(meta.error);
     $('vTitle').textContent = meta.title;
@@ -229,7 +223,7 @@ async function watch(id) {
     const ranked = rankVideos(meta.related || []);
     $('related').innerHTML = ranked.map(v => `<div class="card flex gap-2 rounded-lg overflow-hidden cursor-pointer bg-[#1a1a1a]" onclick="watch('${v.id}')">
       <img src="${v.thumbnail}" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${v.id}/hqdefault.jpg'" loading="lazy" class="w-40 aspect-video object-cover"/><div class="p-2 text-xs"><b class="line2">${v.title}</b><br/><span class="text-gray-400">${v.author||''}</span></div></div>`).join('') || '<p class="text-sm text-gray-400">İlgili video yok</p>';
-    const c = await fetch('/api/comments/' + id).then(r => r.json());
+    const c = await Api.comments(id);
     $('comments').innerHTML = (c.comments||[]).slice(0,30).map(x => `<div class="bg-[#1a1a1a] rounded-lg p-2"><b>${x.author}</b> <span class="text-gray-500">• ${x.published||''} • 👍 ${x.likes||0}</span><br/>${x.text}</div>`).join('') || '<p class="text-gray-400">Yorum yok</p>';
   } catch (e) { // son çare: direkt embed
     $('vTitle').textContent = 'Video açılıyor (yedek oynatıcı)...';
@@ -295,7 +289,7 @@ async function openChannel(authorId) {
   hideShorts();
   $('watchView').classList.add('hidden'); $('homeView').classList.add('hidden'); $('channelView').classList.remove('hidden');
   $('chHead').innerHTML = 'Yükleniyor...'; $('chGrid').innerHTML = '';
-  const c = await fetch('/api/channel/' + authorId).then(r => r.json());
+  const c = await Api.channel(authorId);
   if (c.error) { $('chHead').textContent = c.error; return; }
   $('chHead').innerHTML = `<img src="${c.avatar||''}" class="w-20 h-20 rounded-full"/><div><h2 class="text-xl font-bold">${c.name}</h2><p class="text-sm text-gray-400">${Number(c.subs||0).toLocaleString('tr-TR')} abone</p><p class="text-sm text-gray-300 mt-1 max-w-2xl">${(c.description||'').slice(0,300)}</p></div>`;
   $('chGrid').innerHTML = (c.videos||[]).map(card).join('');
@@ -362,7 +356,7 @@ function setupShortsObserver() {
 }
 
 async function streamUrlFor(id) {
-  const s = await fetch('/api/stream/' + id).then(r => r.json()).catch(() => null);
+  const s = await Api.stream(id).catch(() => null);
   if (s?.sources?.[0]?.url) return { kind: 'one', url: s.sources[0].url };
   if (s?.vo) return { kind: 'dual', vo: s.vo, ao: s.ao || null };
   return null;
@@ -459,5 +453,11 @@ function toggleHistory() {
   $('histList').innerHTML = getHist().map(h => `<div class="cursor-pointer hover:underline" onclick="watch('${h.id}')">▶ ${h.title.slice(0,60)}<br/><span class="text-gray-500 text-xs">${h.author}</span></div>`).join('') || '<p class="text-gray-500">Henüz bir şey izlemedin.</p>';
 }
 function clearHistory() { localStorage.removeItem('yt_hist'); toggleHistory(); toggleHistory(); loadTrending(); }
+
+// Statik modda (GitHub Pages) backend yok: Shorts + indirme gizlenir
+if (typeof STATIC !== 'undefined' && STATIC) {
+  const sb = $('shortsBtn'); if (sb) sb.style.display = 'none';
+  for (const b of ['dlMp4', 'dlMp3']) { const el = $(b); if (el) el.style.display = 'none'; }
+}
 
 loadTrending();

@@ -4,6 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>no-tube</title>
+<meta name="description" content="no-tube — API'siz alternatif YouTube" />
+<meta name="theme-color" content="#0f0f0f" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body{background:#0f0f0f;color:#f1f1f1;font-family:Roboto,Arial,sans-serif}
@@ -24,7 +28,7 @@
       <button onclick="doSearch()" class="bg-[#222] border border-l-0 border-white/20 rounded-r-full px-5">🔍</button>
     </div>
     <button onclick="toggleHistory()" class="chip rounded-full px-4 py-2 text-sm">🕘 Geçmiş</button>
-    <button onclick="openShorts()" class="chip rounded-full px-4 py-2 text-sm">⚡ Shorts</button>
+    <button onclick="openShorts()" id="shortsBtn" class="chip rounded-full px-4 py-2 text-sm">⚡ Shorts</button>
   </div>
 </header>
 
@@ -89,6 +93,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('sw.js').catch(() => {}); }</script>
+<script src="api-client.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
