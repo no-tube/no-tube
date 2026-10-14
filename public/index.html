@@ -61,15 +61,17 @@
   <!-- WATCH -->
   <div id="watchView" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2">
-      <div class="aspect-video bg-black rounded-xl overflow-hidden">
+      <div class="aspect-video bg-black rounded-xl overflow-hidden relative">
         <video id="player" controls class="w-full h-full hidden"></video>
         <iframe id="embed" class="w-full h-full hidden" frameborder="0" allowfullscreen allow="accelerometer; autoplay; encrypted-media; picture-in-picture"></iframe>
+        <div id="sbToast" class="hidden absolute top-2 left-1/2 -translate-x-1/2 bg-black/80 rounded-full px-4 py-1.5 text-sm z-10"></div>
       </div>
       <p id="vTitle" class="font-bold text-lg mt-3"></p>
       <div class="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-300">
         <button id="vAuthor" class="font-semibold hover:text-white" onclick="openChannel(currentAuthorId)"></button>
         <span id="vMeta" class="text-gray-400"></span>
         <span class="flex-1"></span>
+        <button id="sbToggle" onclick="toggleSb()" class="chip rounded-full px-3 py-1.5" title="Sponsor bölümlerini otomatik atla">⏭ Sponsor</button>
         <a id="dlMp4" class="chip rounded-full px-3 py-1.5" href="#">⬇ MP4</a>
         <a id="dlMp3" class="chip rounded-full px-3 py-1.5" href="#">🎵 MP3</a>
       </div>

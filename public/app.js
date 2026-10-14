@@ -216,6 +216,26 @@ async function watch(id) {
     $('dlMp4').href = '/api/download?id=' + id + '&format=mp4';
     $('dlMp3').href = '/api/download?id=' + id + '&format=mp3';
     saveWatch({ id, title: meta.title, author: meta.author, authorId: meta.authorId });
+    // Sponsor bölümlerini çek + atlama kancası (oynatmayı beklemez, arkada gelir)
+    sbSegs = [];
+    updateSbBtn();
+    fetch('https://sponsor.ajay.app/api/skipSegments?videoID=' + id + '&category=sponsor&category=intro&category=outro&category=selfpromo&category=interaction_reminder')
+      .then(r => r.ok ? r.json() : [])
+      .then(segs => {
+        sbSegs = (Array.isArray(segs) ? segs : []).filter(s => s.actionType === 'skip' && s.segment).sort((a, b) => a.segment[0] - b.segment[0]);
+        updateSbBtn();
+      })
+      .catch(() => {});
+    const p = $('player');
+    p.ontimeupdate = () => {
+      if (!sbOn || !sbSegs.length) return;
+      const t = p.currentTime;
+      const hit = sbSegs.find(s => t >= s.segment[0] && t < s.segment[1] - 0.2);
+      if (hit) {
+        try { p.currentTime = hit.segment[1]; } catch {}
+        toastSb(`⏭ ${sbLabel(hit.category)} atlandı (${Math.round(hit.segment[1] - hit.segment[0])}sn)`);
+      }
+    };
     // Oynat: kaynakları sırayla dene (mp4 → alternatif → HLS → embed).
     // Biri MIME/ölü URL olursa otomatik sonrakine geçer, "no supported format" bitiyor.
     playWithFallback(id, meta.thumbnail, await streamP);
@@ -443,6 +463,31 @@ function toggleShortMute(btn) {
     vid.muted = !vid.muted;
     btn.textContent = vid.muted ? '🔇' : '🔊';
   }
+}
+
+// ---------- Reklam/sponsor engelleme ----------
+// Direkt oynatmada YouTube reklamı (pre-roll/mid-roll) zaten HİÇ gelmiyor.
+// Burası video İÇİ sponsor/giriş/bitiş bölümlerini SponsorBlock verisiyle atlar.
+let sbSegs = [];
+let sbOn = (localStorage.getItem('yt_sb') || 'on') === 'on';
+const sbLabel = (c) => ({ sponsor: 'Sponsor', intro: 'Giriş', outro: 'Bitiş', selfpromo: 'Tanıtım', interaction_reminder: 'Hatırlatma' }[c] || 'Bölüm');
+function updateSbBtn() {
+  const b = $('sbToggle');
+  if (b) b.textContent = sbOn ? (sbSegs.length ? `⏭ Sponsor (${sbSegs.length})` : '⏭ Sponsor') : '⏭ Kapalı';
+}
+function toggleSb() {
+  sbOn = !sbOn;
+  localStorage.setItem('yt_sb', sbOn ? 'on' : 'off');
+  updateSbBtn();
+}
+let sbToastT = null;
+function toastSb(msg) {
+  const t = $('sbToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(sbToastT);
+  sbToastT = setTimeout(() => t.classList.add('hidden'), 2200);
 }
 
 function shortsNav(d) {
