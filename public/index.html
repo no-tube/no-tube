@@ -15,20 +15,22 @@
   .chip{background:#272727}.chip:hover{background:#3d3d3d}
   ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#4d4d4d;border-radius:8px}
   .line2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  #shortsView{height:calc(100vh - 70px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain}
-  .slide{height:calc(100vh - 90px);scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;align-items:center}
+  #shortsView{height:calc(100vh - 130px);height:calc(100dvh - 130px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain}
+  .slide{height:calc(100vh - 150px);height:calc(100dvh - 150px);scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;align-items:center}
 </style>
 </head>
 <body>
 <header class="sticky top-0 z-50 bg-[#0f0f0f]/95 backdrop-blur border-b border-white/10">
-  <div class="max-w-[1400px] mx-auto flex gap-3 items-center px-4 py-3">
-<button onclick="goHome()" class="text-xl font-bold whitespace-nowrap">▶ <span class="text-red-500">no</span>-tube</button>
-    <div class="flex-1 flex max-w-2xl mx-auto">
-      <input id="q" placeholder="Ara..." class="w-full bg-[#121212] border border-white/20 rounded-l-full px-5 py-2 outline-none focus:border-blue-500" onkeydown="if(event.key==='Enter')doSearch()" />
-      <button onclick="doSearch()" class="bg-[#222] border border-l-0 border-white/20 rounded-r-full px-5">🔍</button>
+  <div class="max-w-[1400px] mx-auto flex flex-wrap gap-2 sm:gap-3 items-center px-3 sm:px-4 py-2 sm:py-3">
+    <button onclick="goHome()" class="text-lg sm:text-xl font-bold whitespace-nowrap">▶ <span class="text-red-500">no</span>-tube</button>
+    <div class="ml-auto flex gap-2 order-2">
+      <button onclick="toggleHistory()" class="chip rounded-full px-3 sm:px-4 py-2 text-sm">🕘<span class="hidden sm:inline"> Geçmiş</span></button>
+      <button onclick="openShorts()" id="shortsBtn" class="chip rounded-full px-3 sm:px-4 py-2 text-sm">⚡<span class="hidden sm:inline"> Shorts</span></button>
     </div>
-    <button onclick="toggleHistory()" class="chip rounded-full px-4 py-2 text-sm">🕘 Geçmiş</button>
-    <button onclick="openShorts()" id="shortsBtn" class="chip rounded-full px-4 py-2 text-sm">⚡ Shorts</button>
+    <div class="order-3 basis-full sm:order-none sm:basis-auto sm:flex-1 flex sm:max-w-2xl sm:mx-auto">
+      <input id="q" placeholder="Ara..." class="w-full min-w-0 bg-[#121212] border border-white/20 rounded-l-full px-4 sm:px-5 py-2 outline-none focus:border-blue-500" onkeydown="if(event.key==='Enter')doSearch()" />
+      <button onclick="doSearch()" class="bg-[#222] border border-l-0 border-white/20 rounded-r-full px-4 sm:px-5 shrink-0">🔍</button>
+    </div>
   </div>
 </header>
 
