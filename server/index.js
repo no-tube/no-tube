@@ -37,6 +37,8 @@ const setCache = (k, data) => cache.set(k, { t: Date.now(), data });
 // i.ytimg.com her zaman herkese açık, API anahtarı falan gerektirmez.
 const ytThumb = (id) => id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
 const pipedId = (url) => url?.split('v=')[1]?.split('&')[0];
+// Piped proxy kapşonlu avatar/tampon URLs'leri direkt YouTube CDN'e çevir (proxy 502 sık)
+const directImg = (u) => { try { const url = new URL(u); const h = url.searchParams.get('host'); return h ? `${url.protocol}//${h}${url.pathname}` : u; } catch { return u || ''; } };
 
 async function fetchWithTimeout(url, ms = 10000) {
   const ctrl = new AbortController();
@@ -137,6 +139,7 @@ const normPipedItem = (i) => {
   return {
     id: vid, title: i.title, author: i.uploaderName,
     authorId: i.uploaderUrl?.split('/channel/')[1] || i.uploaderUrl?.split('/').pop(),
+    avatar: directImg(i.uploaderAvatar) || '',
     views: i.views, published: i.uploadedDate || i.uploadedDate, duration: i.duration,
     thumbnail: ytThumb(vid), description: i.shortDescription || '',
     live: i.duration === -1, short: !!i.isShort
@@ -204,6 +207,7 @@ app.get('/api/video/:id', async (req, res) => {
     const out = {
       source: 'piped:' + base,
       id, title: data.title, author: data.uploader, authorId: data.uploaderUrl?.split('/channel/')[1],
+      avatar: directImg(data.uploaderAvatar) || '',
       views: data.views, likes: data.likes, published: data.uploadDate,
       description: data.description, keywords: data.tags || [],
       thumbnail: ytThumb(id),
@@ -243,7 +247,7 @@ app.get('/api/channel/:id', async (req, res) => {
     const { data, source } = await pipedFetch(`/channel/${id}`);
     return res.json({
       source, name: data.name, subs: data.subscriberCount, banner: data.bannerUrl,
-      avatar: data.avatarUrl, description: data.description,
+      avatar: directImg(data.avatarUrl), description: data.description,
       videos: (data.relatedStreams || []).filter(i => i.url?.includes('v=')).map(i => {
         const vid = pipedId(i.url);
         return { id: vid, title: i.title, author: data.name, views: i.views, thumbnail: ytThumb(vid), duration: i.duration, live: i.duration === -1, short: !!i.isShort };

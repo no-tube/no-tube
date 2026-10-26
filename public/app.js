@@ -21,6 +21,21 @@ const chColor = s => { let h = 0; for (const c of (s || '')) h = (h * 31 + c.cha
 const fmtDate = p => { if (/^\d{8}$/.test(p || '')) { const y = p.slice(0,4), m = p.slice(4,6), d = p.slice(6,8); return `${d}.${m}.${y}`; } return p || ''; };
 const initials = s => (s || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 const avatarHtml = (name, cls = 'avatar') => `<div class="${cls}" style="background:${chColor(name)}">${esc(initials(name))}</div>`;
+function avFallback(img) {
+  const name = img.dataset.name || '';
+  const d = document.createElement('div');
+  d.style.background = chColor(name);
+  d.style.width = '100%'; d.style.height = '100%';
+  d.style.display = 'flex'; d.style.alignItems = 'center'; d.style.justifyContent = 'center';
+  d.style.borderRadius = '50%';
+  d.style.color = '#fff'; d.style.fontSize = '13px';
+  d.textContent = initials(name);
+  img.replaceWith(d);
+}
+// Gerçek kanal fotoğrafı varsa onu kullan, yoksa baş harf avatarı
+const avatarAttr = (name, url, cls = 'avatar') => url
+  ? `<img src="${esc(url)}" loading="lazy" class="${cls}" data-name="${esc(name||'')}" onerror="avFallback(this)"/>`
+  : avatarHtml(name, cls);
 
 // ---------- Sidebar / genel navigasyon ----------
 function toggleSidebar() {
@@ -98,7 +113,6 @@ const recoCard = (v) => card(v);
 
 // ---------- Kartlar (YouTube stili) ----------
 function card(v) {
-  const av = avatarHtml(v.author);
   const views = v.views == null ? '' : shortNum(v.views) + ' görüntüleme';
   const dot = views && (v.published || v.date) ? ' • ' : '';
   const pub = v.published || v.date || '';
@@ -108,7 +122,7 @@ function card(v) {
       ${v.duration != null ? `<span class="absolute bottom-1.5 right-1.5 text-xs font-medium bg-black/80 rounded px-1 py-0.5 ${v.duration === -1 ? 'text-red-400' : ''}">${fmtDur(v.duration)}</span>` : ''}
     </div>
     <div class="cardtext flex gap-3">
-      ${v.author ? av : ''}
+      ${v.author ? avatarAttr(v.author, v.avatar) : ''}
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium line2 leading-5 group-hover:text-white">${esc(v.title) || 'Başlıksız'}</p>
         ${v.author ? `<p class="text-xs text-[#aaaaaa] mt-1 line1">${esc(v.author)}</p>` : ''}
@@ -304,8 +318,8 @@ async function watch(id) {
     if (meta.error) throw new Error(meta.error);
     $('vTitle').textContent = meta.title;
     $('vAuthor').textContent = meta.author;
-    $('vAvatar').textContent = initials(meta.author);
-    $('vAvatar').style.background = chColor(meta.author);
+    $('vAvatar').innerHTML = avatarAttr(meta.author, meta.avatar);
+    $('vAvatar').style.background = meta.avatar ? 'transparent' : chColor(meta.author);
     currentAuthorId = meta.authorId;
     $('vMeta').textContent = '';
     const likes = Number(meta.likes || 0);
@@ -483,7 +497,7 @@ async function openShorts() {
           <button onclick="event.stopPropagation();toggleShortMute(this)" class="absolute top-3 right-3 z-10 iconbtn bg-black/50 hover:bg-black/70">🔇</button>
           <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
             <div class="flex items-center gap-3">
-              ${avatarHtml(v.author, 'w-9 h-9 rounded-full flex items-center justify-center text-xs')}
+              ${avatarAttr(v.author, v.avatar, 'w-9 h-9 rounded-full flex items-center justify-center text-xs object-cover')}
               <span class="text-sm font-medium line1">${esc(v.author)}</span>
             </div>
             <p class="text-sm line2 mt-2">${esc(v.title)}</p>

@@ -96,7 +96,6 @@
     <button onclick="toggleHistory()" class="iconbtn" title="İzleme geçmişi">
       <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M14.97 16.95L10 13.87V7h2v5.76l4.03 2.49-1.06 1.7zM12 3c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
-    <div class="ml-1 w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center text-sm font-medium cursor-pointer">N</div>
   </div>
 </header>
 
@@ -180,7 +179,7 @@
       <h1 id="vTitle" class="text-xl font-bold mt-3 leading-6"></h1>
       <div class="flex flex-wrap items-center gap-3 mt-3">
         <div class="flex items-center gap-3 min-w-0">
-          <div id="vAvatar" class="avatar bg-gradient-to-br from-teal-500 to-emerald-700 text-sm flex items-center justify-center font-medium cursor-pointer" onclick="openChannel(currentAuthorId)"></div>
+          <div id="vAvatar" class="avatar cursor-pointer overflow-hidden" onclick="openChannel(currentAuthorId)"></div>
           <div class="min-w-0">
             <button id="vAuthor" class="font-medium block hover:opacity-80 truncate max-w-[160px] sm:max-w-xs" onclick="openChannel(currentAuthorId)"></button>
             <span id="vMeta" class="text-xs text-[#aaaaaa] truncate"></span>

@@ -12,6 +12,8 @@ const PD_INST = [
 ];
 
 const pdThumb = (id) => id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
+// Piped proxy avatar URL'lerini direkt YouTube CDN'e çevir (proxy 502 sık)
+const directImg = (u) => { try { const url = new URL(u); const h = url.searchParams.get('host'); return h ? `${url.protocol}//${h}${url.pathname}` : u; } catch { return u || ''; } };
 const pdId = (url) => url?.split('v=')[1]?.split('&')[0];
 const pdIsHls = (u) => !!u && (/\.m3u8(\?|$)/.test(u) || (u.includes('manifest.googlevideo.com')));
 const pdGarbage = (s) => !s?.url || s.quality === 'LBRY' || s.url.includes('odycdn.com') || pdIsHls(s.url);
@@ -38,6 +40,7 @@ function pdNorm(i) {
   return {
     id: vid, title: i.title, author: i.uploaderName,
     authorId: i.uploaderUrl?.split('/channel/')[1] || i.uploaderUrl?.split('/').pop(),
+    avatar: directImg(i.uploaderAvatar) || '',
     views: i.views, published: i.uploadedDate, duration: i.duration,
     thumbnail: pdThumb(vid), description: i.shortDescription || '',
     live: i.duration === -1, short: !!i.isShort
@@ -121,6 +124,7 @@ const Api = {
     return {
       source: 'piped-direct:' + base,
       id, title: d.title, author: d.uploader, authorId: d.uploaderUrl?.split('/channel/')[1],
+      avatar: directImg(d.uploaderAvatar) || '',
       views: d.views, likes: d.likes, published: d.uploadDate,
       description: d.description, keywords: d.tags || [], thumbnail: pdThumb(id),
       related: (d.relatedStreams || []).filter(i => i.url?.includes('v=')).map(i => {
@@ -160,7 +164,7 @@ const Api = {
     const { json: d, base } = await pp(`/channel/${id}`);
     return {
       source: 'piped-direct:' + base, name: d.name, subs: d.subscriberCount,
-      banner: d.bannerUrl, avatar: d.avatarUrl, description: d.description,
+      banner: d.bannerUrl, avatar: directImg(d.avatarUrl), description: d.description,
       videos: (d.relatedStreams || []).filter(i => i.url?.includes('v=')).map(i => {
         const vid = pdId(i.url);
         return { id: vid, title: i.title, author: d.name, views: i.views, thumbnail: pdThumb(vid), duration: i.duration, live: i.duration === -1, short: !!i.isShort };
