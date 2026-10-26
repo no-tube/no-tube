@@ -1,10 +1,49 @@
-// API'siz istemci + öneri algoritması
+// API'siz istemci + öneri algoritması — YouTube tarzı arayüz
 let currentAuthorId = null;
 let lastRelated = [];
 
 const $ = id => document.getElementById(id);
-const fmtViews = v => v == null ? '' : Number(v).toLocaleString('tr-TR') + ' görüntüleme';
-const fmtDur = s => { if (s === -1) return '🔴 CANLI'; if (s == null) return ''; s = Number(s); if (isNaN(s)) return s; const h = Math.floor(s/3600), m = Math.floor(s%3600/60), ss = s%60; return h ? `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}` : `${m}:${String(ss).padStart(2,'0')}`; };
+const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// YouTube tarzı kısa sayı: 1,2 Mn / 12 bin
+function shortNum(v) {
+  v = Number(v) || 0;
+  let s;
+  if (v >= 1e9) s = (v / 1e9).toFixed(1).replace('.', ',') + ' Mr';
+  else if (v >= 1e6) s = (v / 1e6).toFixed(1).replace('.', ',') + ' Mn';
+  else if (v >= 1e3) s = Math.round(v / 1e3) + ' bin';
+  else return String(v);
+  return s.replace(',0 ', ' ');
+}
+const fmtViews = v => v == null ? '' : shortNum(v) + ' görüntüleme';
+const fmtDur = s => { if (s === -1) return 'CANLI'; if (s == null) return ''; s = Number(s); if (isNaN(s)) return s; const h = Math.floor(s/3600), m = Math.floor(s%3600/60), ss = s%60; return h ? `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}` : `${m}:${String(ss).padStart(2,'0')}`; };
+const chColor = s => { let h = 0; for (const c of (s || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h},45%,40%)`; };
+const fmtDate = p => { if (/^\d{8}$/.test(p || '')) { const y = p.slice(0,4), m = p.slice(4,6), d = p.slice(6,8); return `${d}.${m}.${y}`; } return p || ''; };
+const initials = s => (s || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const avatarHtml = (name, cls = 'avatar') => `<div class="${cls}" style="background:${chColor(name)}">${esc(initials(name))}</div>`;
+
+// ---------- Sidebar / genel navigasyon ----------
+function toggleSidebar() {
+  if (window.innerWidth < 1024) document.body.classList.toggle('mobile-open');
+  else document.body.classList.toggle('sb-collapsed');
+}
+function hideSidebar() { document.body.classList.remove('mobile-open'); document.body.classList.add('sb-collapsed'); }
+function showSidebar() { document.body.classList.remove('sb-collapsed', 'mobile-open'); }
+
+function toast(msg) {
+  const t = $('subToast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.add('hidden'), 2000);
+}
+function subToast() { toast('no-tube: Abonelikler bu sürümde simülasyon 😄'); }
+function shareToast() {
+  const url = $('embed')?.src || location.href;
+  try { navigator.clipboard.writeText(url); toast('Bağlantı kopyalandı'); } catch { toast('Paylaşım bağlantısı: ' + url); }
+}
+function likePill() { toast('Begenme burada simülasyon modunda 🙃'); }
+function doSearchPrompt(q) { $('q').value = q; doSearch(); }
 
 // ---------- Geçmiş + Algoritma ----------
 const getHist = () => JSON.parse(localStorage.getItem('yt_hist') || '[]');
@@ -57,34 +96,82 @@ function rankVideos(list) { return [...list].sort((a,b) => scoreVideo(b) - score
 
 const recoCard = (v) => card(v);
 
+// ---------- Kartlar (YouTube stili) ----------
 function card(v) {
-  return `<div class="card rounded-xl overflow-hidden cursor-pointer bg-[#1a1a1a]" onclick="watch('${v.id}')">
-    <div class="relative"><img src="${v.thumbnail}" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${v.id}/hqdefault.jpg'" loading="lazy" class="w-full aspect-video object-cover"/>
-    <span class="absolute bottom-1 right-1 text-xs bg-black/80 rounded px-1">${fmtDur(v.duration)}</span></div>
-    <div class="p-3"><p class="font-semibold text-sm line2">${v.title||'Başlıksız'}</p>
-    <p class="text-xs text-gray-400 mt-1">${v.author||''} • ${v.published||''}</p></div></div>`;
+  const av = avatarHtml(v.author);
+  const views = v.views == null ? '' : shortNum(v.views) + ' görüntüleme';
+  const dot = views && (v.published || v.date) ? ' • ' : '';
+  const pub = v.published || v.date || '';
+  return `<div class="card cursor-pointer group" onclick="watch('${v.id}')">
+    <div class="relative">
+      <img src="${v.thumbnail}" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${v.id}/hqdefault.jpg'" loading="lazy" class="cardimg w-full aspect-video object-cover"/>
+      ${v.duration != null ? `<span class="absolute bottom-1.5 right-1.5 text-xs font-medium bg-black/80 rounded px-1 py-0.5 ${v.duration === -1 ? 'text-red-400' : ''}">${fmtDur(v.duration)}</span>` : ''}
+    </div>
+    <div class="cardtext flex gap-3">
+      ${v.author ? av : ''}
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium line2 leading-5 group-hover:text-white">${esc(v.title) || 'Başlıksız'}</p>
+        ${v.author ? `<p class="text-xs text-[#aaaaaa] mt-1 line1">${esc(v.author)}</p>` : ''}
+        <p class="text-xs text-[#aaaaaa]">${views}${dot}${esc(pub)}</p>
+      </div>
+    </div>
+  </div>`;
 }
+
+// Izleme sayfası "Sıradaki" listesi — YouTube sıkı yatay kart
+const relCard = (v) => `<div class="card flex gap-2 cursor-pointer p-1 rounded-xl" onclick="watch('${v.id}')">
+  <div class="relative w-[168px] shrink-0">
+    <img src="${v.thumbnail}" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${v.id}/hqdefault.jpg'" loading="lazy" class="cardimg w-[168px] aspect-video object-cover"/>
+    ${v.duration != null ? `<span class="absolute bottom-1 right-1 text-xs font-medium bg-black/80 rounded px-1 py-0.5">${fmtDur(v.duration)}</span>` : ''}
+  </div>
+  <div class="min-w-0 flex-1 pr-1">
+    <p class="text-sm font-medium line2 leading-5">${esc(v.title)}</p>
+    <p class="text-xs text-[#aaaaaa] mt-1 line1">${esc(v.author) || ''}</p>
+    <p class="text-xs text-[#aaaaaa]">${v.views == null ? '' : shortNum(v.views) + ' görüntüleme'}${v.published ? ' • ' + esc(v.published) : ''}</p>
+  </div>
+</div>`;
+
+function showSkels(n = 12) {
+  const s = $('loadSkels');
+  s.classList.remove('hidden');
+  s.innerHTML = Array.from({ length: n }, () => `
+    <div>
+      <div class="skel cardimg w-full aspect-video rounded-xl"></div>
+      <div class="cardtext flex gap-3">
+        <div class="skel w-9 h-9 rounded-full shrink-0"></div>
+        <div class="flex-1 space-y-2"><div class="skel h-4 rounded w-11/12"></div><div class="skel h-3 rounded w-2/3"></div></div>
+      </div>
+    </div>`).join('');
+}
+function hideSkels() { $('loadSkels').classList.add('hidden'); }
 
 // ---------- Views ----------
 async function goHome() {
+  syncUrl('');
   hideShorts();
   $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden'); $('homeView').classList.remove('hidden');
+  showSidebar();
   loadTrending();
 }
-async function loadTrending() {
+async function loadTrending(force) {
+  hideShorts();
+  $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden'); $('homeView').classList.remove('hidden');
+  showSkels();
+  $('exploreWrap').classList.add('hidden'); $('recoBar').classList.add('hidden');
   try {
     const r = await Api.trending();
     const list = r.results || [];
     lastRelated = list;
-    // Geçmiş (izleme veya arama) varsa ana sayfa = sadece öneriler. Yoksa Keşfet göster.
-    if (getHist().length || getSearches().length) { $('exploreWrap').classList.add('hidden'); }
+    hideSkels();
+    // Geçmiş (izleme veya arama) varsa ana sayfa = sadece öneriler. Yoksa (veya Trendler'e basıldıysa) Keşfet göster.
+    if ((getHist().length || getSearches().length) && !force) { $('exploreWrap').classList.add('hidden'); }
     else {
       $('exploreWrap').classList.remove('hidden');
-      $('exploreTitle').textContent = '🧭 Keşfet';
+      $('exploreTitle').textContent = 'Trendler — Türkiye';
       $('grid').innerHTML = list.map(card).join('');
     }
     renderReco(list);
-  } catch { $('grid').innerHTML = '<p class="text-gray-400">Yüklenemedi, sayfayı yenile.</p>'; }
+  } catch { hideSkels(); $('exploreTitle').textContent = 'Trendler'; $('exploreWrap').classList.remove('hidden'); $('grid').innerHTML = '<p class="text-[#aaaaaa]">Yüklenemedi, sayfayı yenile.</p>'; }
 }
 
 // Gerçek öneri motoru: geçmişten yeni adaylar bulur (sadece sıralamaz, keşfeder)
@@ -100,7 +187,7 @@ async function renderReco(pool) {
   const basis = `${hist.length} izleme + ${nSearch} arama`;
   // 1) Anında: mevcut havuzu kişiselleştirilmiş sırayla göster
   $('recoRow').innerHTML = rankVideos(fresh).slice(0, 8).map(recoCard).join('')
-    || '<p class="text-sm text-gray-400">Öneriler hazırlanıyor...</p>';
+    || '<p class="text-sm text-[#aaaaaa]">Öneriler hazırlanıyor...</p>';
   $('recoNote').textContent = `${basis} baz alındı • yeni öneriler bulunuyor...`;
   // 2) Arka planda: YENİ adaylar — 3 kaynak (başlık kelimesi çıkarımı YOK):
   try {
@@ -183,25 +270,32 @@ async function renderReco(pool) {
 }
 async function doSearch() {
   const q = $('q').value.trim(); if (!q) return;
+  syncUrl('q=' + encodeURIComponent(q));
   saveSearch(q); // aramayı da algoritmaya işle
   recoToken++; // bekleyen öneri işini iptal et (arama sonuçlarına Sana Özel bulaşmasın)
-  hideShorts();
+  hideShorts(); showSidebar();
   $('recoBar').classList.add('hidden');
   $('homeView').classList.remove('hidden'); $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden');
-  const r = await Api.search(q);
-  const list = rankVideos(r.results || []);
-  lastRelated = list;
+  showSkels(8);
   $('exploreWrap').classList.remove('hidden');
-  $('exploreTitle').textContent = `“${q}” sonuçları`;
-  $('grid').innerHTML = list.map(card).join('') || '<p>Sonuç yok</p>';
+  $('exploreTitle').textContent = `“${q}” için sonuçlar`;
+  $('grid').innerHTML = '';
+  try {
+    const r = await Api.search(q);
+    const list = rankVideos(r.results || []);
+    lastRelated = list;
+    hideSkels();
+    $('grid').innerHTML = list.map(card).join('') || '<p class="text-[#aaaaaa]">Sonuç yok</p>';
+  } catch { hideSkels(); $('grid').innerHTML = '<p class="text-[#aaaaaa]">Arama başarısız oldu.</p>'; }
 }
 
 async function watch(id) {
   recoToken++; // bekleyen öneri işini iptal et
-  hideShorts();
+  hideShorts(); hideSidebar();
   $('homeView').classList.add('hidden'); $('channelView').classList.add('hidden'); $('watchView').classList.remove('hidden');
+  syncUrl('v=' + id);
   window.scrollTo(0,0);
-  $('vTitle').textContent = 'Yükleniyor...'; $('related').innerHTML = ''; $('comments').innerHTML = 'Yorumlar yükleniyor...';
+  $('vTitle').textContent = 'Yükleniyor...'; $('related').innerHTML = ''; $('comments').innerHTML = '';
   $('player').classList.add('hidden'); $('embed').classList.add('hidden');
   try {
     const metaP = Api.video(id);
@@ -209,13 +303,22 @@ async function watch(id) {
     const meta = await metaP; // bilgi hemen gelsin, stream beklenmesin
     if (meta.error) throw new Error(meta.error);
     $('vTitle').textContent = meta.title;
-    $('vAuthor').textContent = '👤 ' + meta.author;
+    $('vAuthor').textContent = meta.author;
+    $('vAvatar').textContent = initials(meta.author);
+    $('vAvatar').style.background = chColor(meta.author);
     currentAuthorId = meta.authorId;
-    $('vMeta').textContent = `${fmtViews(meta.views)} • 👍 ${Number(meta.likes||0).toLocaleString('tr-TR')} • ${meta.published||''}`;
+    $('vMeta').textContent = '';
+    const likes = Number(meta.likes || 0);
+    $('likeCount').textContent = likes ? shortNum(likes) : '';
+    $('vMetaTop').textContent = `${fmtViews(meta.views)}${meta.published ? ' • ' + fmtDate(meta.published) : ''}`;
     $('vDesc').textContent = meta.description || '';
+    $('descBox').open = false;
     $('dlMp4').href = '/api/download?id=' + id + '&format=mp4';
     $('dlMp3').href = '/api/download?id=' + id + '&format=mp3';
     saveWatch({ id, title: meta.title, author: meta.author, authorId: meta.authorId });
+    // İlgili videolar hemen (boş görünmesin diye) yüklensin:
+    const relatedInit = meta.related || [];
+    $('related').innerHTML = rankVideos(relatedInit).map(relCard).join('') || '<p class="text-sm text-[#aaaaaa]">İlgili video yok</p>';
     // Sponsor bölümlerini çek + atlama kancası (oynatmayı beklemez, arkada gelir)
     sbSegs = [];
     updateSbBtn();
@@ -239,16 +342,32 @@ async function watch(id) {
     // Oynat: kaynakları sırayla dene (mp4 → alternatif → HLS → embed).
     // Biri MIME/ölü URL olursa otomatik sonrakine geçer, "no supported format" bitiyor.
     playWithFallback(id, meta.thumbnail, await streamP);
-    // İlgili videoları algoritmayla yeniden sırala
-    const ranked = rankVideos(meta.related || []);
-    $('related').innerHTML = ranked.map(v => `<div class="card flex gap-2 rounded-lg overflow-hidden cursor-pointer bg-[#1a1a1a]" onclick="watch('${v.id}')">
-      <img src="${v.thumbnail}" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${v.id}/hqdefault.jpg'" loading="lazy" class="w-40 aspect-video object-cover"/><div class="p-2 text-xs"><b class="line2">${v.title}</b><br/><span class="text-gray-400">${v.author||''}</span></div></div>`).join('') || '<p class="text-sm text-gray-400">İlgili video yok</p>';
+    // İlgili videoları tam veriyle güncelle (varsa)
+    const ranked = rankVideos(meta.related || relatedInit);
+    $('related').innerHTML = ranked.map(relCard).join('') || '<p class="text-sm text-[#aaaaaa]">İlgili video yok</p>';
+    $('comments').innerHTML = Array.from({ length: 4 }, skelComment).join('');
     const c = await Api.comments(id);
-    $('comments').innerHTML = (c.comments||[]).slice(0,30).map(x => `<div class="bg-[#1a1a1a] rounded-lg p-2"><b>${x.author}</b> <span class="text-gray-500">• ${x.published||''} • 👍 ${x.likes||0}</span><br/>${x.text}</div>`).join('') || '<p class="text-gray-400">Yorum yok</p>';
+    $('comments').innerHTML = (c.comments||[]).slice(0,50).map(commentItem).join('') || '<p class="text-[#aaaaaa]">Yorum yok</p>';
   } catch (e) { // son çare: direkt embed
     $('vTitle').textContent = 'Video açılıyor (yedek oynatıcı)...';
     const em = $('embed'); em.src = `https://www.youtube-nocookie.com/embed/${id}`; em.classList.remove('hidden');
   }
+}
+
+const skelComment = () => `<div class="flex gap-3"><div class="skel w-10 h-10 rounded-full shrink-0"></div><div class="flex-1 space-y-2"><div class="skel h-3 rounded w-36"></div><div class="skel h-3 rounded w-full"></div><div class="skel h-3 rounded w-4/5"></div></div></div>`;
+
+function commentItem(x) {
+  const av = x.thumbnail
+    ? `<img src="${x.thumbnail}" onerror="this.onerror=null;this.replaceWith(document.createRange().createContextualFragment(avatarHtml('${esc(x.author)}','avatar')))" loading="lazy" class="avatar w-10 h-10"/>`
+    : avatarHtml(x.author, 'avatar w-10 h-10 text-sm flex items-center justify-center');
+  return `<div class="flex gap-3">
+    ${av}
+    <div class="min-w-0">
+      <p class="text-[13px]"><b class="font-medium">${esc(x.author)}</b> <span class="text-[#aaaaaa] ml-1">${esc(x.published||'')}</span></p>
+      <p class="mt-1 whitespace-pre-wrap leading-5">${esc(x.text)}</p>
+      <p class="text-xs text-[#aaaaaa] mt-1.5 flex items-center gap-1.5"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4h13.66c1.13 0 2.07-.84 2.22-1.96l1-8A2.25 2.25 0 0021.66 11h-2.89z"/></svg> ${x.likes||0} · Yanıtla</p>
+    </div>
+  </div>`;
 }
 
 function showEmbed(id) {
@@ -304,32 +423,44 @@ function playWithFallback(id, poster, stream) {
 }
 
 async function openChannel(authorId) {
-  if (!authorId) return alert('Kanal bilgisi yok');
+  if (!authorId) return;
   recoToken++; // bekleyen öneri işini iptal et
-  hideShorts();
+  hideShorts(); hideSidebar();
   $('watchView').classList.add('hidden'); $('homeView').classList.add('hidden'); $('channelView').classList.remove('hidden');
-  $('chHead').innerHTML = 'Yükleniyor...'; $('chGrid').innerHTML = '';
-  const c = await Api.channel(authorId);
-  if (c.error) { $('chHead').textContent = c.error; return; }
-  $('chHead').innerHTML = `<img src="${c.avatar||''}" class="w-20 h-20 rounded-full"/><div><h2 class="text-xl font-bold">${c.name}</h2><p class="text-sm text-gray-400">${Number(c.subs||0).toLocaleString('tr-TR')} abone</p><p class="text-sm text-gray-300 mt-1 max-w-2xl">${(c.description||'').slice(0,300)}</p></div>`;
-  $('chGrid').innerHTML = (c.videos||[]).map(card).join('');
+  showSkels(8);
+  $('chHead').innerHTML = ''; $('chGrid').innerHTML = '';
+  try {
+    const c = await Api.channel(authorId);
+    hideSkels();
+    if (c.error) { $('chHead').textContent = c.error; return; }
+    $('chHead').innerHTML = `
+      <div class="sm:w-32 sm:h-32 mt-14 sm:mt-0">${c.avatar ? `<img src="${c.avatar}" onerror="this.style.display='none'" class="w-20 h-20 sm:w-32 sm:h-32 rounded-full object-cover"/>` : avatarHtml(c.name, 'w-20 h-20 sm:w-32 sm:h-32 rounded-full flex items-center justify-center text-2xl')}</div>
+      <div class="pt-2 sm:pt-16">
+        <h2 class="text-xl sm:text-2xl font-bold">${esc(c.name)}</h2>
+        <p class="text-sm text-[#aaaaaa] mt-1">${shortNum(c.subs||0)} abone</p>
+        <p class="text-sm text-[#aaaaaa] mt-1 max-w-2xl line1 sm:line2">${esc((c.description||'').slice(0,300))}</p>
+      </div>`;
+    $('chGrid').innerHTML = (c.videos||[]).map(card).join('');
+  } catch { hideSkels(); $('chHead').textContent = 'Kanal yüklenemedi'; }
 }
 
 // ---------- Shorts (dikey akış) ----------
-const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 let shortsObs = null;
 function pauseAllShorts() {
   document.querySelectorAll('#shortsFeed video').forEach(v => v.pause());
   document.querySelectorAll('#shortsFeed iframe').forEach(f => { if (f.src) { f.dataset.fsrc = f.src; f.removeAttribute('src'); } });
 }
-function hideShorts() { const el = $('shortsView'); if (el) { el.classList.add('hidden'); pauseAllShorts(); } }
+function hideShorts() { const el = $('shortsView'); if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); pauseAllShorts(); } }
 
 async function openShorts() {
   recoToken++;
+  syncUrl('');
+  hideSidebar();
   pauseAllShorts();
-  $('homeView').classList.add('hidden'); $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden');
   $('shortsView').classList.remove('hidden');
-  $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">⚡ Shorts yükleniyor...</p>';
+  $('homeView').classList.add('hidden'); $('watchView').classList.add('hidden'); $('channelView').classList.add('hidden');
+  $('shortsView').scrollTop = 0;
+  $('shortsFeed').innerHTML = '<p class="text-[#aaaaaa] p-8 text-center w-full">Shorts yükleniyor...</p>';
   const chs = [...new Set(getHist().filter(h => h.authorId).slice(0, 5).map(h => h.authorId))];
   const sq = [...new Set(getSearches().slice(0, 3).map(s => s.q + ' shorts'))];
   try {
@@ -344,21 +475,24 @@ async function openShorts() {
     pushAll(rankVideos(r.pool || []));
     pushAll(r.qres || []);
     const list = final.slice(0, 30);
-    if (!list.length) { $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">Shorts bulunamadı.</p>'; return; }
+    if (!list.length) { $('shortsFeed').innerHTML = '<p class="text-[#aaaaaa] p-8 text-center w-full">Shorts bulunamadı.</p>'; return; }
     $('shortsFeed').innerHTML = list.map((v, i) => `
       <div class="slide" data-i="${i}">
-        <div class="relative h-full aspect-[9/16] max-w-full bg-black rounded-xl overflow-hidden">
+        <div class="relative h-full aspect-[9/16] max-w-full bg-black rounded-none sm:rounded-2xl overflow-hidden">
           <video data-id="${v.id}" class="w-full h-full object-contain bg-black" loop playsinline muted preload="none" poster="${v.thumbnail}" onclick="this.paused?this.play().catch(()=>{}):this.pause()"></video>
-          <button onclick="event.stopPropagation();toggleShortMute(this)" class="absolute top-2 right-2 z-10 chip rounded-full px-3 py-1.5 text-sm">🔇</button>
-          <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
-            <p class="font-semibold text-sm line2">${esc(v.title)}</p>
-            <p class="text-xs text-gray-300">👤 ${esc(v.author)}</p>
+          <button onclick="event.stopPropagation();toggleShortMute(this)" class="absolute top-3 right-3 z-10 iconbtn bg-black/50 hover:bg-black/70">🔇</button>
+          <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+            <div class="flex items-center gap-3">
+              ${avatarHtml(v.author, 'w-9 h-9 rounded-full flex items-center justify-center text-xs')}
+              <span class="text-sm font-medium line1">${esc(v.author)}</span>
+            </div>
+            <p class="text-sm line2 mt-2">${esc(v.title)}</p>
           </div>
         </div>
       </div>`).join('');
     setupShortsObserver();
     $('shortsView').scrollTop = 0;
-  } catch { $('shortsFeed').innerHTML = '<p class="text-gray-400 p-8 text-center">Shorts yüklenemedi.</p>'; }
+  } catch { $('shortsFeed').innerHTML = '<p class="text-[#aaaaaa] p-8 text-center w-full">Shorts yüklenemedi.</p>'; }
 }
 
 function setupShortsObserver() {
@@ -438,7 +572,9 @@ async function playShort(vid) {
 function setMuteIcon(vid) {
   const btn = vid.closest('.slide')?.querySelector('button');
   if (!btn) return;
-  btn.textContent = (vid._au ? vid._au.muted : vid.muted) ? '🔇' : '🔊';
+  btn.innerHTML = (vid._au ? vid._au.muted : vid.muted)
+    ? '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="#fff"><path d="M3.63 3.63L2.22 5.04 7.29 10H4a1 1 0 00-1 1v2a1 1 0 001 1h3l4.29 3.29c.63.63 1.71.18 1.71-.71v-3.46l4.04 4.04c-.14.1-.28.2-.42.29l.72 1.2a8.98 8.98 0 00.8-.55L21.79 22 22 21.79 4.21 4 3.63 3.63zM14 4.83v6.05l1 1V3.29c0-.89-1.08-1.34-1.71-.71L9.17 6.46l1.41 1.42L14 4.83zm3.44 6.55l1.9 1.9c.2-.4.2-.9.06-1.34l-1.96.56.84-1.12h-.84zM10.8 12.99v4.18l-2.1-2.1 2.1-2.08zM15 3.29"/></svg>'
+    : '<svg viewBox="0 0 24 24" class="w-5 h-5" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
 }
 
 // Son çare: slaytın içine gömülü oynatıcı koy
@@ -458,10 +594,10 @@ function toggleShortMute(btn) {
   const vid = btn.closest('.slide').querySelector('video');
   if (vid._au) { // çift hat: ses ayrı elementte
     vid._au.muted = !vid._au.muted;
-    btn.textContent = vid._au.muted ? '🔇' : '🔊';
+    setMuteIcon(vid);
   } else if (vid) {
     vid.muted = !vid.muted;
-    btn.textContent = vid.muted ? '🔇' : '🔊';
+    setMuteIcon(vid);
   }
 }
 
@@ -473,12 +609,13 @@ let sbOn = (localStorage.getItem('yt_sb') || 'on') === 'on';
 const sbLabel = (c) => ({ sponsor: 'Sponsor', intro: 'Giriş', outro: 'Bitiş', selfpromo: 'Tanıtım', interaction_reminder: 'Hatırlatma' }[c] || 'Bölüm');
 function updateSbBtn() {
   const b = $('sbToggle');
-  if (b) b.textContent = sbOn ? (sbSegs.length ? `⏭ Sponsor (${sbSegs.length})` : '⏭ Sponsor') : '⏭ Kapalı';
+  if (b) b.title = sbOn ? (sbSegs.length ? `${sbSegs.length} sponsor bölümü otomatik atlanacak` : 'Sponsor bölümleri veride yok') : 'Sponsor atlama kapalı';
 }
 function toggleSb() {
   sbOn = !sbOn;
   localStorage.setItem('yt_sb', sbOn ? 'on' : 'off');
   updateSbBtn();
+  toast(sbOn ? 'Sponsor atlama açık' : 'Sponsor atlama kapalı');
 }
 let sbToastT = null;
 function toastSb(msg) {
@@ -505,13 +642,32 @@ document.addEventListener('keydown', e => {
 // geçmiş paneli
 function toggleHistory() {
   const p = $('histPanel'); p.classList.toggle('hidden');
-  $('histList').innerHTML = getHist().map(h => `<div class="cursor-pointer hover:underline" onclick="watch('${h.id}')">▶ ${h.title.slice(0,60)}<br/><span class="text-gray-500 text-xs">${h.author}</span></div>`).join('') || '<p class="text-gray-500">Henüz bir şey izlemedin.</p>';
+  $('histList').innerHTML = getHist().map(h => `
+    <div class="flex gap-2 cursor-pointer hover:bg-[#313131] rounded-lg p-1" onclick="watch('${h.id}')">
+      <img src="https://i.ytimg.com/vi/${h.id}/mqdefault.jpg" class="w-24 aspect-video rounded object-cover shrink-0" loading="lazy"/>
+      <div class="min-w-0"><p class="line2 font-medium leading-4">${esc(h.title.slice(0,80))}</p><p class="text-xs text-[#aaaaaa] mt-1 line1">${esc(h.author)}</p></div>
+    </div>`).join('') || '<p class="text-[#aaaaaa]">Henüz bir şey izlemedin.</p>';
 }
-function clearHistory() { localStorage.removeItem('yt_hist'); toggleHistory(); toggleHistory(); loadTrending(); }
+function clearHistory() { localStorage.removeItem('yt_hist'); localStorage.removeItem('yt_search'); toggleHistory(); toggleHistory(); loadTrending(true); }
+
+// Ana ekranda sidebar açık başlasın
+document.body.classList.remove('sb-collapsed');
 
 // Statik modda (GitHub Pages) backend yok: indirme gizlenir (Shorts statikte de var)
 if (typeof STATIC !== 'undefined' && STATIC) {
   for (const b of ['dlMp4', 'dlMp3']) { const el = $(b); if (el) el.style.display = 'none'; }
 }
 
-loadTrending();
+// URL → görünüm senkronu (?v=ID derin bağlantı, aramada ?q=)
+function syncUrl(params) {
+  try { history.replaceState(null, '', params ? '?' + params : location.pathname); } catch {}
+}
+
+// Başlangıç: derin bağlantı varsa aç
+const bootV = new URLSearchParams(location.search);
+const bootId = bootV.get('v');
+const bootQ = bootV.get('q');
+if (bootId && bootId.length === 11) watch(bootId);
+else if (bootQ) { $('q').value = bootQ; doSearch(); }
+else if (bootV.get('view') === 'shorts') openShorts();
+else goHome();

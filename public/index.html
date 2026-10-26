@@ -10,91 +10,246 @@
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  body{background:#0f0f0f;color:#f1f1f1;font-family:Roboto,Arial,sans-serif}
-  .card:hover{background:#272727}
-  .chip{background:#272727}.chip:hover{background:#3d3d3d}
-  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#4d4d4d;border-radius:8px}
+  :root{ --yt-bg:#0f0f0f; --yt-surface:#1f1f1f; --yt-chip:#272727; --yt-hover:#3f3f3f; --yt-text:#f1f1f1; --yt-dim:#aaaaaa; --yt-line:#303030; }
+  html,body{background:var(--yt-bg);color:var(--yt-text);font-family:Roboto,Arial,sans-serif;overflow-x:hidden}
+  ::selection{background:#3ea6ff55}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#575757;border-radius:8px}::-webkit-scrollbar-track{background:transparent}
   .line2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  #shortsView{height:calc(100vh - 130px);height:calc(100dvh - 130px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain}
-  .slide{height:calc(100vh - 150px);height:calc(100dvh - 150px);scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;align-items:center}
+  .line1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  #shortsView{height:calc(100vh - 56px);height:calc(100dvh - 56px);overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain}
+  .slide{height:calc(100vh - 76px);height:calc(100dvh - 76px);scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;align-items:center}
+  .yticon{fill:currentColor}
+  .sidebar-item{display:flex;align-items:center;gap:24px;height:40px;padding:0 24px;border-radius:10px;white-space:nowrap;cursor:pointer;color:#f1f1f1;font-size:14px}
+  .sidebar-item:hover{background:#272727}
+  .sidebar-item svg{flex-shrink:0}
+  #sidebar::-webkit-scrollbar{width:8px}#sidebar:hover::-webkit-scrollbar-thumb{background:#575757}
+  .searchbar{background:var(--yt-bg);border:1px solid #303030;border-radius:20px 0 0 20px}
+  .searchbar:focus-within{border-color:#1c62b9;padding-left:44px}
+  .searchbox{background:none;border:none;outline:none;width:100%;height:24px;color:#f1f1f1;padding-left:16px}
+  .searchbtn{background:#222;border:1px solid #303030;border-left:none;border-radius:0 20px 20px 0;width:64px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .searchbtn:hover{background:#313131;border-color:#303030}
+  .iconbtn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .iconbtn:hover{background:#272727}
+  .chip{background:var(--yt-chip);color:#f1f1f1}.chip:hover{background:var(--yt-hover)}
+  .card{border-radius:12px}.card:hover{background:#1f1f1f}
+  .cardimg{border-radius:12px}
+  .cardtext{margin-top:12px;padding-right:8px}
+  .avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#272727;flex-shrink:0}
+  .apill{background:var(--yt-chip);color:#f1f1f1;border-radius:18px;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;cursor:pointer;font-size:14px;white-space:nowrap}
+  .apill:hover{background:var(--yt-hover)}
+  .apill svg{width:24px;height:24px}
+  .apill-text{border-right:1px solid #555;padding-right:10px;margin-right:10px}
+  #sbToast{background:#e5e5e5;color:#0f0f0f}
+  .skel{background:linear-gradient(90deg,#1f1f1f 25%,#2a2a2a 50%,#1f1f1f 75%);background-size:200% 100%;animation:sk 1.2s infinite}
+  @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  dialog::backdrop{background:rgba(0,0,0,.5)}
+  #sidebar{transition:transform .2s}
+  #main{transition:margin-left .2s;padding-left:0}
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:85;display:none}
+  @media(min-width:1024px){
+    #sidebar{transform:none!important}
+    body:not(.sb-collapsed) #main{margin-left:240px}
+    body.sb-collapsed #sidebar{display:none}
+    body.sb-hidden #sidebar,#scrim{display:none!important}
+  }
+  @media(max-width:1023px){
+    #sidebar{transform:translateX(-100%);top:0;height:100%;padding-top:56px;width:240px;background:#0f0f0f;z-index:120}
+    body.mobile-open #sidebar{transform:none}
+    body.mobile-open #scrim{display:block}
+    body #main{margin-left:0!important}
+    body.sb-hidden #sidebar{display:none!important}
+    #main{padding-left:0!important}
+  }
 </style>
 </head>
-<body>
-<header class="sticky top-0 z-50 bg-[#0f0f0f]/95 backdrop-blur border-b border-white/10">
-  <div class="max-w-[1400px] mx-auto flex flex-wrap gap-2 sm:gap-3 items-center px-3 sm:px-4 py-2 sm:py-3">
-    <button onclick="goHome()" class="text-lg sm:text-xl font-bold whitespace-nowrap">▶ <span class="text-red-500">no</span>-tube</button>
-    <div class="ml-auto flex gap-2 order-2">
-      <button onclick="toggleHistory()" class="chip rounded-full px-3 sm:px-4 py-2 text-sm">🕘<span class="hidden sm:inline"> Geçmiş</span></button>
-      <button onclick="openShorts()" id="shortsBtn" class="chip rounded-full px-3 sm:px-4 py-2 text-sm">⚡<span class="hidden sm:inline"> Shorts</span></button>
+<body class="min-h-screen">
+
+<!-- ÜST BAR -->
+<header class="fixed top-0 left-0 right-0 h-14 z-[100] bg-[#0f0f0f] flex items-center px-2 sm:px-4 gap-1 sm:gap-4">
+  <button class="iconbtn" onclick="toggleSidebar()" title="Menü">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M21 6H3V5h18v1zm0 5H3v1h18v-1zm0 6H3v1h18v-1z"/></svg>
+  </button>
+  <a onclick="goHome()" class="flex items-center cursor-pointer select-none mr-1" title="no-tube Ana Sayfa">
+    <svg viewBox="0 0 34 24" class="w-9 h-6">
+      <path d="M33 6.2c0-2.4-1.6-4.2-3.8-4.7C26 1 17 1 17 1S8 1 4.8 1.5C2.6 2 1 3.8 1 6.2V17.8c0 2.4 1.6 4.2 3.8 4.7C8 23 17 23 17 23s9 0 12.2-.5c2.2-.5 3.8-2.3 3.8-4.7V6.2z" fill="#FF0000"/>
+      <path d="M13.5 17V7l9 5-9 5z" fill="#fff"/>
+    </svg>
+    <span class="text-[20px] font-medium tracking-tight -ml-0.5">no<span class="text-[#FF0000]">-</span>tube</span>
+  </a>
+  <div class="flex-1 flex justify-center max-w-[640px] mx-auto">
+    <div class="flex w-full">
+      <div class="searchbar flex flex-1 items-center relative">
+        <input id="q" class="searchbox" placeholder="Ara" onkeydown="if(event.key==='Enter')doSearch()" />
+      </div>
+      <button class="searchbtn" onclick="doSearch()" title="Ara">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#f1f1f1"><path d="M20.87 20.17l-5.59-5.59C16.35 13.35 17 11.75 17 10c0-3.87-3.13-7-7-7s-7 3.13-7 7 3.13 7 7 7c1.75 0 3.35-.65 4.58-1.71l5.59 5.59.7-.71zM10 16c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+      </button>
     </div>
-    <div class="order-3 basis-full sm:order-none sm:basis-auto sm:flex-1 flex sm:max-w-2xl sm:mx-auto">
-      <input id="q" placeholder="Ara..." class="w-full min-w-0 bg-[#121212] border border-white/20 rounded-l-full px-4 sm:px-5 py-2 outline-none focus:border-blue-500" onkeydown="if(event.key==='Enter')doSearch()" />
-      <button onclick="doSearch()" class="bg-[#222] border border-l-0 border-white/20 rounded-r-full px-4 sm:px-5 shrink-0">🔍</button>
-    </div>
+    <button class="hidden sm:flex ml-3 iconbtn bg-[#181818] border border-[#303030]" title="Sesli arama (yakında)">
+      <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#f1f1f1"><path d="M12 3c-1.66 0-3 1.37-3 3.07v5.86c0 1.7 1.34 3.07 3 3.07s3-1.37 3-3.07V6.07C15 4.37 13.66 3 12 3zm6.5 9h-1c0 3.03-2.47 5.5-5.5 5.5S7 15.03 7 12H6c0 3.29 2.46 6.02 5.5 6.44V21h2v-2.56C16.54 18.02 18.5 15.29 18.5 12z"/></svg>
+    </button>
+  </div>
+  <div class="flex items-center gap-1 shrink-0">
+    <button onclick="openShorts()" id="shortsBtn" class="iconbtn" title="Shorts">
+      <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M17.77 10.32l-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L8.6 5.15c-.77.4-1.36 1.14-1.55 2.02-.13.58-.09 1.15.11 1.69.05.13.11.26.18.39-.4.19-.76.45-1.06.78-.45.5-.73 1.1-.84 1.75-.19.88.02 1.82.54 2.56l-1.11.57C2.98 15.87 2.3 18.14 3.27 19.97c.97 1.83 3.24 2.53 5.07 1.56l5.88-2.72c.77-.4 1.36-1.14 1.55-2.02.13-.58.09-1.15-.11-1.69-.05-.13-.11-.26-.18-.39.4-.19.76-.45 1.06-.78.45-.5.73-1.1.84-1.75.19-.88-.02-1.82-.54-2.56l-.07-.3zm-6.28 8.35l-3.5 1.62c-1.06.49-2.33.03-2.82-1.03s-.03-2.33 1.03-2.82l2.61-1.21 2.68 3.44zm4.78-9.43l-3.5 1.62-2.68-3.44 3.5-1.62c1.06-.49 2.33-.03 2.82 1.03s.03 2.33-1.03 2.82l.89-.41z"/></svg>
+    </button>
+    <button onclick="toggleHistory()" class="iconbtn" title="İzleme geçmişi">
+      <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M14.97 16.95L10 13.87V7h2v5.76l4.03 2.49-1.06 1.7zM12 3c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+    </button>
+    <div class="ml-1 w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center text-sm font-medium cursor-pointer">N</div>
   </div>
 </header>
 
-<main class="max-w-[1400px] mx-auto px-4 py-5">
-  <!-- HOME -->
+<!-- SOL MENÜ -->
+<nav id="sidebar" class="fixed left-0 top-14 bottom-0 w-[240px] bg-[#0f0f0f] overflow-y-auto z-[90] py-3 sidebar-item-open">
+  <a onclick="goHome()" class="sidebar-item">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M4 10v10h5v-6h6v6h5V10L12 3 4 10z"/></svg>
+    <span class="font-medium">Ana Sayfa</span>
+  </a>
+  <a onclick="openShorts()" class="sidebar-item">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M17.77 10.32l-1.2-.5L18 9.06c1.84-.96 2.53-3.23 1.56-5.06s-3.24-2.53-5.07-1.56L8.6 5.15c-.77.4-1.36 1.14-1.55 2.02-.13.58-.09 1.15.11 1.69.05.13.11.26.18.39-.4.19-.76.45-1.06.78-.45.5-.73 1.1-.84 1.75-.19.88.02 1.82.54 2.56l-1.11.57C2.98 15.87 2.3 18.14 3.27 19.97c.97 1.83 3.24 2.53 5.07 1.56l5.88-2.72c.77-.4 1.36-1.14 1.55-2.02.13-.58.09-1.15-.11-1.69-.05-.13-.11-.26-.18-.39.4-.19.76-.45 1.06-.78.45-.5.73-1.1.84-1.75.19-.88-.02-1.82-.54-2.56l-.07-.3zm-6.28 8.35l-3.5 1.62c-1.06.49-2.33.03-2.82-1.03s-.03-2.33 1.03-2.82l2.61-1.21 2.68 3.44zm4.78-9.43l-3.5 1.62-2.68-3.44 3.5-1.62c1.06-.49 2.33-.03 2.82 1.03s.03 2.33-1.03 2.82l.89-.41z"/></svg>
+    <span class="font-medium">Shorts</span>
+  </a>
+  <a onclick="toggleHistory()" class="sidebar-item">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M14.97 16.95L10 13.87V7h2v5.76l4.03 2.49-1.06 1.7zM12 3c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+    <span class="font-medium">Geçmiş</span>
+  </a>
+  <hr class="border-[#303030] my-3 mx-4" />
+  <p class="px-6 py-1 text-[16px] text-[#aaaaaa]">Keşfet</p>
+  <a onclick="loadTrending(true)" class="sidebar-item">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="#f1f1f1"><path d="M12.98 19.62l-2.11-.9c-.29-.12-.49-.4-.49-.71V3.25c0-.27.22-.25.5-.25s.5-.02.5.25V13l2.1.87c2.94 1.22 2.36 5.75-.5 5.75zm-1.98-18.3c-3.31 0-6 2.69-6 6 0 1.65.67 3.15 1.76 4.22-.76 1.04-1.76 2.66-1.76 4.78h2c0-2.14 1.23-3.63 1.76-4.26A6.02 6.02 0 0111 12.62V13h2v-.38a6.02 6.02 0 014.24-2.62c.53.63 1.76 2.12 1.76 4.26h2c0-2.12-1-3.74-1.76-4.78A5.98 5.98 0 0017 7.32c0-3.31-2.69-6-6-6z" opacity=".45"/></svg>
+    <span class="font-medium">Trendler</span>
+  </a>
+</nav>
+
+<main id="main" class="pt-14 ml-0 sidebar-open transition-[margin] duration-200">
+
+  <!-- ANA SAYFA / ARAMA -->
   <div id="homeView">
-    <div id="recoBar" class="mb-6 hidden">
-      <h2 class="text-lg font-bold mb-1">Ana Sayfa</h2>
-      <p id="recoNote" class="text-xs text-gray-400 mb-3"></p>
-      <div id="recoRow" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    <div id="chipsBar" class="sticky top-14 z-40 bg-[#0f0f0f]/95 backdrop-blur px-4 py-3 max-w-full">
+      <div class="flex gap-3 overflow-x-auto pb-1" style="scrollbar-width:none">
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="goHome()">Tümü</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="loadTrending(true)">Trendler</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="goHome()">Müzik</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('oyun')">Oyun</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('film')">Film</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('yapay zeka')">Yapay Zeka</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('+canlı')">Canlı</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('podcast')">Podcast</button>
+        <button class="chip rounded-lg px-3 h-8 text-sm whitespace-nowrap" onclick="doSearchPrompt('komedi')">Komedi</button>
+      </div>
     </div>
-    <div id="exploreWrap" class="hidden">
-      <h2 id="exploreTitle" class="text-lg font-bold mb-3">🧭 Keşfet</h2>
-      <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    <div class="px-4 pb-8">
+      <div id="recoBar" class="mb-6 hidden">
+        <div class="flex items-center gap-2 mb-1">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#3ea6ff"><path d="M12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <h2 class="text-base font-medium">Sana Özel</h2>
+          <span id="recoNote" class="text-xs text-[#aaaaaa]"></span>
+        </div>
+        <div id="recoRow" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+      <div id="exploreWrap" class="hidden">
+        <h2 id="exploreTitle" class="text-lg font-bold mb-3">Trendler</h2>
+        <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+      <div id="loadSkels" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
     </div>
   </div>
 
   <!-- SHORTS -->
   <div id="shortsView" class="hidden relative">
-    <button onclick="goHome()" class="fixed left-4 top-20 z-50 chip rounded-full px-4 py-2 text-sm">← Ana Sayfa</button>
-    <div class="fixed right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
-      <button onclick="shortsNav(-1)" class="chip rounded-full px-3 py-2">▲</button>
-      <button onclick="shortsNav(1)" class="chip rounded-full px-3 py-2">▼</button>
-    </div>
     <div id="shortsFeed"></div>
+    <div class="fixed right-3 sm:right-6 top-1/2 -translate-y-1/2 z-[80] flex flex-col gap-3 bg-transparent">
+      <button onclick="shortsNav(-1)" class="iconbtn bg-[#272727] hover:bg-[#3f3f3f]" title="Önceki">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#f1f1f1"><path d="M18.59 10.52L12 4 5.41 10.52 6.83 12l4.17-3.89V20h2V8.11L17.17 12z"/></svg>
+      </button>
+      <button onclick="shortsNav(1)" class="iconbtn bg-[#272727] hover:bg-[#3f3f3f]" title="Sonraki">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#f1f1f1"><path d="M12 4l-1.41 1.41L15.17 10H4v2h11.17l-4.58 4.59L12 18l7-7-7-7z" transform="rotate(90 12 12)"/></svg>
+      </button>
+    </div>
   </div>
 
-  <!-- WATCH -->
-  <div id="watchView" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-2">
-      <div class="aspect-video bg-black rounded-xl overflow-hidden relative">
+  <!-- İZLEME -->
+  <div id="watchView" class="hidden max-w-[1750px] mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+    <div class="flex-1 min-w-0 lg:max-w-[1280px]">
+      <div class="relative bg-black rounded-none lg:rounded-2xl overflow-hidden aspect-video max-h-[80vh] mx-auto">
         <video id="player" controls class="w-full h-full hidden"></video>
         <iframe id="embed" class="w-full h-full hidden" frameborder="0" allowfullscreen allow="accelerometer; autoplay; encrypted-media; picture-in-picture"></iframe>
-        <div id="sbToast" class="hidden absolute top-2 left-1/2 -translate-x-1/2 bg-black/80 rounded-full px-4 py-1.5 text-sm z-10"></div>
+        <div id="sbToast" class="hidden absolute top-3 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2 text-sm font-medium z-10"></div>
       </div>
-      <p id="vTitle" class="font-bold text-lg mt-3"></p>
-      <div class="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-300">
-        <button id="vAuthor" class="font-semibold hover:text-white" onclick="openChannel(currentAuthorId)"></button>
-        <span id="vMeta" class="text-gray-400"></span>
-        <span class="flex-1"></span>
-        <button id="sbToggle" onclick="toggleSb()" class="chip rounded-full px-3 py-1.5" title="Sponsor bölümlerini otomatik atla">⏭ Sponsor</button>
-        <a id="dlMp4" class="chip rounded-full px-3 py-1.5" href="#">⬇ MP4</a>
-        <a id="dlMp3" class="chip rounded-full px-3 py-1.5" href="#">🎵 MP3</a>
+      <h1 id="vTitle" class="text-xl font-bold mt-3 leading-6"></h1>
+      <div class="flex flex-wrap items-center gap-3 mt-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="vAvatar" class="avatar bg-gradient-to-br from-teal-500 to-emerald-700 text-sm flex items-center justify-center font-medium cursor-pointer" onclick="openChannel(currentAuthorId)"></div>
+          <div class="min-w-0">
+            <button id="vAuthor" class="font-medium block hover:opacity-80 truncate max-w-[160px] sm:max-w-xs" onclick="openChannel(currentAuthorId)"></button>
+            <span id="vMeta" class="text-xs text-[#aaaaaa] truncate"></span>
+          </div>
+          <button onclick="subToast()" class="ml-2 bg-white text-black rounded-full px-4 h-9 text-sm font-medium hover:bg-[#e5e5e5] shrink-0">Abone Ol</button>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap ml-auto">
+          <button id="likeBtn" class="apill" onclick="likePill(this)">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4h13.66c1.13 0 2.07-.84 2.22-1.96l1-8A2.25 2.25 0 0021.66 11h-2.89zM4 20v-8h2v8H4zm16.98-8.72l-1 8c-.07.41-.43.72-.85.72H7V11.4l5.36-6.32c.16-.18.42-.28.68-.28.49 0 .84.4.7.8L11.6 12h7.17z"/></svg>
+            <span id="likeCount" class="apill-text"></span>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.23 13h4.23l-1.52 4.94C7.62 18.97 8.46 20 9.62 20c.58 0 1.14-.24 1.52-.65L17 13h4V3h-4H7.34c-1.13 0-2.07.84-2.22 1.96l-1 8A2.25 2.25 0 002.34 13h2.89zM20 4v8h-2V4h2zm-16.98 8.72l1-8C4.09 4.31 4.45 4 4.87 4H17v8.6l-5.36 6.32c-.16.18-.42.28-.68.28-.49 0-.84-.4-.7-.8L12.4 12H5.23z"/></svg>
+          </button>
+          <button class="apill" onclick="shareToast()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 5.63L20.66 12 15 18.37V15v-1h-1c-3.96 0-7.14 1-9.75 3.09 1.84-4.07 5.11-6.4 9.89-7.1l.86-.13V9V5.63M14 3v6C6.22 10.13 3.11 15.33 2 21c2.78-3.97 6.44-5.78 12-5.78V21l8-9-8-9z"/></svg>
+            <span class="hidden sm:inline">Paylaş</span>
+          </button>
+          <div class="relative">
+            <button class="apill px-2" onclick="toggleSb()" id="sbToggle" title="Sponsor bölümlerini otomatik atla">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.2 5.5c-.7-.7-1.7-1-2.7-.8L5.9 5.6c-1.5.3-2.6 1.5-2.8 2.9l-.7 4.7c-.2 1 .1 2 .8 2.7l3.9 3.9c.9.9 2.3 1 3.3.3l4.4-3c1.2-.8 1.6-2.4 1-3.7l-2.6-5.9zm-1 2.3l2.5 5.6c.3.6.1 1.3-.4 1.7l-4.4 3c-.5.4-1.2.3-1.6-.1l-3.9-3.9c-.3-.3-.4-.7-.4-1.2l.7-4.7c.1-.7.6-1.2 1.3-1.3l4.6-.9c.6-.1 1.2.3 1.6.8z"/></svg>
+              <span class="hidden sm:inline">Sponsor</span>
+            </button>
+          </div>
+          <a id="dlMp4" class="apill" title="MP4 indir">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 18v1H6v-1h11zm-.5-6.6l-.7-.7-3.8 3.7V2h-1v12.4l-3.8-3.8-.7.7 5 5 5-4.9z"/></svg>
+            <span class="hidden sm:inline">İndir</span>
+          </a>
+          <a id="dlMp3" class="apill" title="MP3 indir">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4v9.38c-.73-.84-1.8-1.38-3-1.38-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V6h5V4h-6zm-3 15c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"/></svg>
+            <span class="hidden sm:inline">MP3</span>
+          </a>
+        </div>
       </div>
-      <details class="mt-3 bg-[#1f1f1f] rounded-xl p-3 text-sm"><summary class="cursor-pointer font-semibold">Açıklama</summary><p id="vDesc" class="whitespace-pre-wrap text-gray-300 mt-2"></p></details>
-      <h3 class="font-bold mt-5 mb-2">💬 Yorumlar</h3>
-      <div id="comments" class="space-y-3 text-sm"></div>
+      <details id="descBox" class="mt-3 bg-[#272727] hover:bg-[#3f3f3f] rounded-xl px-3 py-3 text-sm cursor-pointer">
+        <summary class="list-none font-medium" id="vMetaTop"></summary>
+        <p id="vDesc" class="whitespace-pre-wrap text-[#f1f1f1] mt-2"></p>
+      </details>
+      <div class="flex items-center justify-between mt-6 mb-2">
+        <h3 class="text-base font-bold">Yorumlar</h3>
+      </div>
+      <div id="comments" class="space-y-4 text-sm"></div>
     </div>
-    <div><h3 class="font-bold mb-2">⏭ Sıradakiler (algoritma sıralı)</h3><div id="related" class="space-y-3"></div></div>
+    <div class="w-full lg:w-[402px] shrink-0">
+      <h3 class="font-bold mb-3">Sıradaki</h3>
+      <div id="related" class="space-y-2"></div>
+    </div>
   </div>
 
-  <!-- CHANNEL -->
-  <div id="channelView" class="hidden">
+  <!-- KANAL -->
+  <div id="channelView" class="hidden max-w-[1280px] mx-auto px-4 py-6">
     <button onclick="goHome()" class="chip rounded-full px-4 py-1.5 text-sm mb-3">← Geri</button>
-    <div id="chHead" class="flex gap-4 items-center"></div>
-    <div id="chGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4"></div>
+    <div class="rounded-xl overflow-hidden bg-gradient-to-r from-[#1f1f1f] via-[#181818] to-[#1f1f1f] h-6 sm:h-32"></div>
+    <div id="chHead" class="flex gap-4 items-center -mt-10 sm:-mt-14 px-4"></div>
+    <div id="chGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6"></div>
   </div>
 </main>
 
-<div id="histPanel" class="hidden fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-white/10 p-4 z-50 overflow-y-auto">
-  <div class="flex justify-between items-center mb-3"><b>İzleme Geçmişi</b><button onclick="toggleHistory()">✖</button></div>
-  <button onclick="clearHistory()" class="text-xs text-red-400 mb-3">Temizle</button>
-  <div id="histList" class="space-y-2 text-sm"></div>
+<div id="scrim" onclick="document.body.classList.remove('mobile-open')"></div>
+
+<!-- GEÇMİŞ PANELİ -->
+<div id="histPanel" class="hidden fixed right-0 top-0 h-full w-80 bg-[#212121] border-l border-[#303030] p-4 z-[110] overflow-y-auto shadow-2xl">
+  <div class="flex justify-between items-center mb-3">
+    <b class="text-base">İzleme Geçmişi</b>
+    <button onclick="toggleHistory()" class="iconbtn"><svg viewBox="0 0 24 24" class="w-5 h-5" fill="#f1f1f1"><path d="M12.71 12l8.15 8.15-.71.71L12 12.71l-8.15 8.15-.71-.71L11.29 12 3.15 3.85l.71-.71L12 11.29l8.15-8.15.71.71z"/></svg></button>
+  </div>
+  <button onclick="clearHistory()" class="text-xs text-red-400 mb-3 hover:underline">Geçmişi temizle</button>
+  <div id="histList" class="space-y-3 text-sm"></div>
 </div>
+
+<div id="subToast" class="hidden fixed bottom-6 left-6 bg-[#e5e5e5] text-[#0f0f0f] rounded px-4 py-2 text-sm z-[120]"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('sw.js').catch(() => {}); }</script>
